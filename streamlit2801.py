@@ -1,6 +1,7 @@
 import streamlit as st
 import ee
-import geemap  # Standard geemap
+import geemap
+from google.oauth2 import service_account
 from datetime import date
 import json
 
@@ -13,20 +14,36 @@ st.title("🌍 Streamlit + Google Earth Engine")
 # --------------------------------------------------
 # Earth Engine Initialization
 # --------------------------------------------------
+
 def initialize_ee():
     try:
-        # If using Streamlit Secrets (Recommended for deployment):
-        secret_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
-        credentials = ee.ServiceAccountCredentials(secret_info['client_email'], key_data=secret_info['private_key'])
+        # Load service account JSON from Streamlit secrets
+        service_account_info = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
 
-        # Initialize Earth Engine with the credentials
-        ee.Initialize(credentials, project='my-project-2801-485801')
+        # If service_account_info is an AttrDict, convert it to a standard dictionary
+        if isinstance(service_account_info, dict):
+            service_account_info = dict(service_account_info)
+        
+        # Correct Earth Engine scope
+        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
+
+        # Create credentials using the service account
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=SCOPES
+        )
+
+        # Initialize Earth Engine
+        ee.Initialize(credentials)
+
         return True
     except Exception as e:
-        st.error(f"Error initializing Earth Engine: {e}")
+        st.error(f"❌ Earth Engine init failed: {e}")
         return False
 
-# Initialize Earth Engine
+# --------------------------------------------------
+# Call the function to initialize Earth Engine
+# --------------------------------------------------
 if initialize_ee():
     st.success("✅ Earth Engine initialized successfully!")
 
@@ -36,13 +53,11 @@ if initialize_ee():
 with st.sidebar:
     st.header("🔍 Search Parameters")
 
-    # User input for latitude and longitude for the region of interest
     lat_ul = st.number_input("Upper-Left Latitude", value=22.5)
     lon_ul = st.number_input("Upper-Left Longitude", value=68.0)
     lat_lr = st.number_input("Lower-Right Latitude", value=21.5)
     lon_lr = st.number_input("Lower-Right Longitude", value=69.0)
 
-    # User input for selecting satellite and date range
     satellite = st.selectbox(
         "Satellite",
         ["Sentinel-2", "Landsat-8", "Landsat-9", "MODIS"]
@@ -57,32 +72,28 @@ with st.sidebar:
 # Processing and Displaying Results
 # --------------------------------------------------
 if run:
-    # Ensure coordinates are correct and create a region of interest (ROI)
+    # Ensure coordinates are correct and ROI is created
     roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
 
-    # Dictionary of satellite image collection IDs
     collection_ids = {
         "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
         "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
         "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
-        "MODIS": "MODIS/006/MOD09GA"
+        "MODIS": "MODIS/006/MOD09GA",
     }
 
-    # Filter the image collection by ROI and date range
     collection = (
         ee.ImageCollection(collection_ids[satellite])
         .filterBounds(roi)
         .filterDate(str(start_date), str(end_date))
     )
 
-    # Get the number of images in the collection
     count = collection.size().getInfo()
     st.write(f"🖼️ **Images Found:** {count}")
 
     if count == 0:
         st.warning("No images found for the selected parameters.")
     else:
-        # Calculate the median of the collection and clip to the ROI
         image = collection.median().clip(roi)
 
         # Create map
@@ -91,7 +102,7 @@ if run:
             zoom=8
         )
 
-        # Visualization parameters for Sentinel-2 (RGB bands)
+        # Visualization
         if satellite == "Sentinel-2":
             vis_params = {
                 "bands": ["B4", "B3", "B2"],
@@ -102,12 +113,10 @@ if run:
         else:
             vis_params = {}
 
-        # Add the image layer and ROI to the map
         Map.addLayer(image, vis_params, f"{satellite}")
         Map.addLayer(roi, {}, "ROI")
 
-        # Enable drawing tools on the map
-        Map.add_draw_control()
+        # Enable drawing tools
+        draw_control = Map.add_draw_control()
 
-        # Render the map in Streamlit
         Map.to_streamlit(height=600)
