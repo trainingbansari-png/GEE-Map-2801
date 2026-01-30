@@ -4,7 +4,7 @@ import geemap
 #import geemap.foliumap as geemap
 from datetime import date
 import json
-from oauth2client.service_account import ServiceAccountCredentials
+from oauthclient.service_account import ServiceAccountCredentials
 # --------------------------------------------------
 # Page config (MUST be first Streamlit command)
 # --------------------------------------------------
