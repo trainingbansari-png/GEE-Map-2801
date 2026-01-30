@@ -1,7 +1,9 @@
 import streamlit as st
 import ee
-import geemap.foliumap as geemap
+import geemap
+from google.oauth2 import service_account
 from datetime import date
+import json
 
 # --------------------------------------------------
 # Page config (MUST be first Streamlit command)
@@ -12,32 +14,41 @@ st.title("🌍 Streamlit + Google Earth Engine")
 # --------------------------------------------------
 # Earth Engine Initialization
 # --------------------------------------------------
-import streamlit as st
-import ee
-import json
 
-# Best practice: Store your service account info in Streamlit Secrets
-# or load from your downloaded JSON file
 def initialize_ee():
     try:
-        # If using a local JSON file:
-        # credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT_EMAIL, KEY_FILE_PATH)
-        
-        # If using Streamlit Secrets (Recommended for deployment):
-        secret_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
-        credentials = ee.ServiceAccountCredentials(secret_info['client_email'], key_data=secret_info['private_key'])
-        
-        ee.Initialize(credentials, project='my-project-6789-484914')
+        # Load service account JSON from Streamlit secrets
+        service_account_info = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
+
+        # If service_account_info is an AttrDict, convert it to a standard dictionary
+        if isinstance(service_account_info, dict):
+            service_account_info = dict(service_account_info)
+       
+        # Correct Earth Engine scope
+        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
+
+        # Create credentials using the service account
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=SCOPES
+        )
+
+        # Initialize Earth Engine
+        ee.Initialize(credentials)
+
         return True
     except Exception as e:
-        st.error(f"Error initializing Earth Engine: {e}")
+        st.error(f"❌ Earth Engine init failed: {e}")
         return False
 
+# --------------------------------------------------
+# Call the function to initialize Earth Engine
+# --------------------------------------------------
 if initialize_ee():
-    st.success("Earth Engine initialized successfully!")
+    st.success("✅ Earth Engine initialized successfully!")
 
 # --------------------------------------------------
-# Sidebar UI
+# Sidebar UI for setting parameters
 # --------------------------------------------------
 with st.sidebar:
     st.header("🔍 Search Parameters")
@@ -58,16 +69,17 @@ with st.sidebar:
     run = st.button("🚀 Search Images")
 
 # --------------------------------------------------
-# Processing
+# Processing and Displaying Results
 # --------------------------------------------------
 if run:
+    # Ensure coordinates are correct and ROI is created
     roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
 
     collection_ids = {
         "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
         "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
         "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
-        "MODIS": "MODIS/006/MOD09GA"
+        "MODIS": "MODIS/006/MOD09GA",
     }
 
     collection = (
@@ -109,4 +121,3 @@ if run:
 
         Map.to_streamlit(height=600)
 
-       
