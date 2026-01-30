@@ -1,29 +1,26 @@
-import streamlit as st
 import ee
-import geemap
-import json
-from datetime import date
+import streamlit as st
 from google.oauth2 import service_account
+from datetime import date
 
 # --------------------------------------------------
 # Earth Engine Initialization
 # --------------------------------------------------
 def initialize_ee():
     try:
-        # Load service account JSON from Streamlit secrets
-        service_account_info = json.loads(
-            st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
-        )
+        # Get service account info from Streamlit secrets (already a dictionary-like object)
+        service_account_info = dict(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
 
-        # Define the correct OAuth scope for Earth Engine
-        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']  # Read-only access
+        # Correct Earth Engine scope
+        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']  # Use the correct scope
 
-        # Create credentials using the service account and scopes
+        # Create credentials
         credentials = service_account.Credentials.from_service_account_info(
-            service_account_info, scopes=SCOPES
+            service_account_info,
+            scopes=SCOPES
         )
 
-        # Initialize Earth Engine with the credentials
+        # Initialize Earth Engine
         ee.Initialize(credentials)
 
         return True
