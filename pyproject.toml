@@ -1,16 +1,17 @@
 import ee
-from oauth2client.service_account import ServiceAccountCredentials
+import json
+import streamlit as st
+from google.oauth2 import service_account
 
-# Path to your service account JSON file
-SERVICE_ACCOUNT_JSON = 'my-project-2801-485801-2defe80d7a14.json'
+# Retrieve the secret from Streamlit secrets
+service_account_json = st.secrets["GCP"]["service_account_json"]
 
-# Define the required scopes for Earth Engine
-SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
+# Parse the JSON and create credentials
+credentials = service_account.Credentials.from_service_account_info(
+    json.loads(service_account_json)
+)
 
-# Create credentials using the service account
-credentials = ServiceAccountCredentials.from_json_keyfile_name(SERVICE_ACCOUNT_JSON, SCOPES)
-
-# Initialize Earth Engine with the credentials
+# Initialize Earth Engine
 ee.Initialize(credentials)
 
-print("Earth Engine API initialized!")
+st.write("Earth Engine API initialized!")
