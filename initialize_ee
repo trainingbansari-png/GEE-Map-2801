@@ -1,0 +1,33 @@
+import ee
+import streamlit as st
+from google.oauth2 import service_account
+import json
+
+# Earth Engine initialization function
+def initialize_ee():
+    try:
+        # Load service account JSON from Streamlit secrets
+        service_account_info = json.loads(
+            st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
+        )
+
+        # Define the required scope for Earth Engine
+        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
+
+        # Create credentials using the service account and scopes
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info, scopes=SCOPES
+        )
+
+        # Initialize Earth Engine with the credentials
+        ee.Initialize(credentials)
+
+        return True
+
+    except Exception as e:
+        st.error(f"❌ Earth Engine init failed: {e}")
+        return False
+
+# Call the function to initialize Earth Engine
+if initialize_ee():
+    st.success("✅ Earth Engine initialized successfully!")
