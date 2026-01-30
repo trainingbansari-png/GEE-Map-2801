@@ -102,10 +102,10 @@ if run:
             zoom=8
         )
 
-        # Visualization
+        # Visualization parameters
         if satellite == "Sentinel-2":
             vis_params = {
-                "bands": ["B4", "B3", "B2"],
+                "bands": ["B4", "B3", "B2"],  # Red, Green, Blue bands for RGB image
                 "min": 0,
                 "max": 3000,
                 "gamma": 1.4
@@ -113,10 +113,12 @@ if run:
         else:
             vis_params = {}
 
+        # Add layers to the map
         Map.addLayer(image, vis_params, f"{satellite}")
         Map.addLayer(roi, {}, "ROI")
 
-        # Enable drawing tools
-        draw_control = Map.add_draw_control()
+        # Add drawing control
+        Map.add_draw_control()
 
-        Map.to_streamlit(height=600)
+        # Display the map in Streamlit
+        Map.to_streamlit(height=600)  # You can adjust the height as per your need
