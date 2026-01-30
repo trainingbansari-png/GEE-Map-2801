@@ -1,6 +1,7 @@
 import streamlit as st
 import ee
-import geemap.foliumap as geemap
+import geemap
+#import geemap.foliumap as geemap
 from datetime import date
 import json
 from ee.oauth import ServiceAccountCredentials
