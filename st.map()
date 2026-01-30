@@ -1,0 +1,11 @@
+import streamlit as st
+import pandas as pd
+
+# Create a simple dataframe with coordinates for the map
+data = pd.DataFrame({
+    'lat': [22.5],
+    'lon': [68.0]
+})
+
+# Display the map using Streamlit's built-in map
+st.map(data)
