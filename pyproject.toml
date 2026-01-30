@@ -1,0 +1,16 @@
+import ee
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Path to your service account JSON file
+SERVICE_ACCOUNT_JSON = 'path/to/your/service-account-file.json'
+
+# Define the required scopes for Earth Engine
+SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
+
+# Create credentials using the service account
+credentials = ServiceAccountCredentials.from_json_keyfile_name(SERVICE_ACCOUNT_JSON, SCOPES)
+
+# Initialize Earth Engine with the credentials
+ee.Initialize(credentials)
+
+print("Earth Engine API initialized!")
