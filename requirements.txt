@@ -3,3 +3,4 @@ geemap
 streamlit
 google_auth
 oauth2client
+AttrDict
