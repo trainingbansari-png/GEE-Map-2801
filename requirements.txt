@@ -1,8 +1,6 @@
-earthengine-api
-geemap
 streamlit
-google_auth
-oauth2client
-AttrDict
-foliumap
-box
+geemap
+folium
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
