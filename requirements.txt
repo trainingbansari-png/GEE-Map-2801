@@ -1,6 +1,6 @@
-streamlit>=1.0.0
+streamlit>=1.10.x
 geemap>=0.30.0
-folium>=0.12.0
+folium>=0.12.1
 google-auth>=2.0.0
 google-auth-oauthlib>=0.4.0
 google-auth-httplib2>=0.1.0
