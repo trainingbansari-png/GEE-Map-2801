@@ -1,8 +1,8 @@
 import streamlit as st
 import ee
-import geemap.foliumap as geemap
-import json
+import geemap  # Standard geemap
 from datetime import date
+import json
 
 # --------------------------------------------------
 # Page config (MUST be first Streamlit command)
