@@ -1,16 +1,7 @@
-import streamlit as st
 import ee
-import geemap
-from datetime import date
-import json
+import streamlit as st
 from google.oauth2 import service_account
-from google.auth.transport.requests import Request
-
-# --------------------------------------------------
-# Page config (MUST be first Streamlit command)
-# --------------------------------------------------
-st.set_page_config(layout="wide")
-st.title("🌍 Streamlit + Google Earth Engine")
+import json
 
 # --------------------------------------------------
 # Earth Engine Initialization
@@ -18,13 +9,17 @@ st.title("🌍 Streamlit + Google Earth Engine")
 def initialize_ee():
     try:
         # Load service account JSON from Streamlit secrets
-        service_account_info = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
+        service_account_info = json.loads(
+            st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
+        )
 
-        # Convert AttrDict to a standard dictionary (if needed) and then JSON string
-        service_account_dict = dict(service_account_info)
-        
-        # Use the service account credentials
-        credentials = service_account.Credentials.from_service_account_info(service_account_dict)
+        # Define the correct OAuth scope for Earth Engine
+        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']  # Read-only access
+
+        # Create credentials using the service account and scopes
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info, scopes=SCOPES
+        )
 
         # Initialize Earth Engine with the credentials
         ee.Initialize(credentials)
@@ -35,12 +30,14 @@ def initialize_ee():
         st.error(f"❌ Earth Engine init failed: {e}")
         return False
 
-# Run the initialization function
+# --------------------------------------------------
+# Call the function to initialize Earth Engine
+# --------------------------------------------------
 if initialize_ee():
     st.success("✅ Earth Engine initialized successfully!")
 
 # --------------------------------------------------
-# Sidebar UI
+# Sidebar UI for setting parameters
 # --------------------------------------------------
 with st.sidebar:
     st.header("🔍 Search Parameters")
@@ -61,9 +58,10 @@ with st.sidebar:
     run = st.button("🚀 Search Images")
 
 # --------------------------------------------------
-# Processing
+# Processing and Displaying Results
 # --------------------------------------------------
 if run:
+    # Ensure coordinates are correct and ROI is created
     roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
 
     collection_ids = {
