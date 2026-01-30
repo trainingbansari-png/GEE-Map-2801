@@ -1,10 +1,11 @@
 import streamlit as st
 import ee
 import geemap
-#import geemap.foliumap as geemap
 from datetime import date
 import json
 from google.oauth2 import service_account
+from google.auth.transport.requests import Request
+
 # --------------------------------------------------
 # Page config (MUST be first Streamlit command)
 # --------------------------------------------------
@@ -17,26 +18,24 @@ st.title("🌍 Streamlit + Google Earth Engine")
 def initialize_ee():
     try:
         # Load service account JSON from Streamlit secrets
-        service_account_info = json.loads(
-            st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
-        )
+        service_account_info = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
 
-        credentials = ServiceAccountCredentials(
-            service_account_info["client_email"],
-            key_data=json.dumps(service_account_info)
-        )
+        # Convert AttrDict to a standard dictionary (if needed) and then JSON string
+        service_account_dict = dict(service_account_info)
+        
+        # Use the service account credentials
+        credentials = service_account.Credentials.from_service_account_info(service_account_dict)
 
-        ee.Initialize(
-            credentials=credentials,
-            project="my-project-2801-485801"
-        )
+        # Initialize Earth Engine with the credentials
+        ee.Initialize(credentials)
+
         return True
 
     except Exception as e:
         st.error(f"❌ Earth Engine init failed: {e}")
         return False
 
-
+# Run the initialization function
 if initialize_ee():
     st.success("✅ Earth Engine initialized successfully!")
 
