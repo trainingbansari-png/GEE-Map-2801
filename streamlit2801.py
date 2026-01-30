@@ -1,4 +1,5 @@
 import ee
+import geemap
 import streamlit as st
 from google.oauth2 import service_account
 from datetime import date
