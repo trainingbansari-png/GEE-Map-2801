@@ -1,5 +1,5 @@
 import streamlit as st
-import earthengine
+import ee
 import geemap
 #import geemap.foliumap as geemap
 from datetime import date
