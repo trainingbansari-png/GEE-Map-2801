@@ -2,3 +2,4 @@ earthengine-api
 geemap
 streamlit
 google_auth
+oauth2client
