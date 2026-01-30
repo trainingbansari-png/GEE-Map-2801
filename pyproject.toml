@@ -2,7 +2,7 @@ import ee
 from oauth2client.service_account import ServiceAccountCredentials
 
 # Path to your service account JSON file
-SERVICE_ACCOUNT_JSON = 'path/to/your/service-account-file.json'
+SERVICE_ACCOUNT_JSON = 'my-project-2801-485801-2defe80d7a14.json'
 
 # Define the required scopes for Earth Engine
 SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
