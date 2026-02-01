@@ -119,8 +119,6 @@ if run:
         # Enable drawing tools
         draw_control = Map.add_draw_control()
 
-       import streamlit_folium as st_folium # Ensure this is installed
-
        # Use this if you want the standard geemap/folium output
        Map.to_streamlit(height=600) 
        # OR use the specific geemap helper
