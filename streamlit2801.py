@@ -4,16 +4,15 @@ import geemap.foliumap as geemap
 from google.oauth2 import service_account
 from datetime import date
 
-# 1. Page Configuration
-st.set_page_config(layout="wide", page_title="GEE Streamlit")
+# --- Page Config ---
+st.set_page_config(layout="wide")
 st.title("🌍 Streamlit + Google Earth Engine")
 
-# 2. Session State Initialization
-# This prevents the map from disappearing after you click it
-if 'map_loaded' not in st.session_state:
-    st.session_state.map_loaded = False
+# --- Session State to keep the map alive ---
+if "map_ready" not in st.session_state:
+    st.session_state.map_ready = False
 
-# 3. Earth Engine Initialization
+# --- Initialization Function ---
 def initialize_ee():
     try:
         if "GCP_SERVICE_ACCOUNT_JSON" not in st.secrets:
@@ -21,20 +20,17 @@ def initialize_ee():
             return False
             
         service_account_info = dict(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
-        SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
-        
         credentials = service_account.Credentials.from_service_account_info(
             service_account_info, 
-            scopes=SCOPES
+            scopes=['https://www.googleapis.com/auth/earthengine.readonly']
         )
-        
         ee.Initialize(credentials)
         return True
     except Exception as e:
         st.error(f"❌ Earth Engine init failed: {e}")
         return False
 
-# 4. Sidebar UI
+# --- Sidebar UI ---
 with st.sidebar:
     st.header("🔍 Search Parameters")
     lat_ul = st.number_input("Upper-Left Latitude", value=22.5)
@@ -46,61 +42,55 @@ with st.sidebar:
         "Satellite",
         ["Sentinel-2", "Landsat-8", "Landsat-9", "MODIS"]
     )
-
     start_date = st.date_input("Start Date", date(2024, 1, 1))
     end_date = st.date_input("End Date", date(2024, 12, 31))
 
-    run_button = st.button("🚀 Search Images")
+    if st.button("🚀 Search Images"):
+        st.session_state.map_ready = True
 
-# 5. Logic execution
+# --- Main Logic ---
 if initialize_ee():
-    if run_button:
-        st.session_state.map_loaded = True
+    if st.session_state.map_ready:
+        try:
+            # 1. Create ROI
+            roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
 
-    if st.session_state.map_loaded:
-        # Create ROI
-        roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
+            # 2. Map Collection IDs
+            collection_ids = {
+                "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
+                "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
+                "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
+                "MODIS": "MODIS/006/MOD09GA",
+            }
 
-        collection_ids = {
-            "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
-            "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
-            "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
-            "MODIS": "MODIS/006/MOD09GA",
-        }
-
-        # Filter Collection
-        collection = (
-            ee.ImageCollection(collection_ids[satellite])
-            .filterBounds(roi)
-            .filterDate(str(start_date), str(end_date))
-        )
-
-      # ... inside the 'if run:' or session state block ...
-    try:
-        count = collection.size().getInfo()
-        st.write(f"🖼️ **Images Found:** {count}")
-
-        if count == 0:
-            st.warning("No images found for the selected parameters.")
-      else:
-            image = collection.median().clip(roi)
-
-            # Create the map using the folium backend explicitly
-            # This avoids the "box.py" error
-            Map = geemap.Map(
-                center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], 
-                zoom=8,
-                basemap="HYBRID" # Specify a basemap directly
+            # 3. Filter and Process
+            collection = (
+                ee.ImageCollection(collection_ids[satellite])
+                .filterBounds(roi)
+                .filterDate(str(start_date), str(end_date))
             )
 
-            # Define Visualization
-            if satellite == "Sentinel-2":
-                vis_params = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+            count = collection.size().getInfo()
+            st.info(f"🖼️ Images Found: {count}")
+
+            if count > 0:
+                image = collection.median().clip(roi)
+                
+                # 4. Create the Map
+                m = geemap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
+                
+                if satellite == "Sentinel-2":
+                    vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+                else:
+                    vis = {"min": 0, "max": 3000}
+
+                m.addLayer(image, vis, satellite)
+                m.addLayer(roi, {"color": "red"}, "ROI")
+                
+                # 5. Render
+                m.to_streamlit(height=600)
             else:
-                vis_params = {"min": 0, "max": 3000}
-
-            Map.addLayer(image, vis_params, f"{satellite}")
-            Map.addLayer(roi, {"color": "red"}, "ROI")
-
-            # Final Render
-            Map.to_streamlit(height=600)
+                st.warning("No images found for these coordinates/dates.")
+        
+        except Exception as e:
+            st.error(f"Processing Error: {e}")
