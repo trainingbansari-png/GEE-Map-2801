@@ -1,58 +1,42 @@
 import streamlit as st
 import ee
-import geemap
+import geemap.foliumap as geemap # Using the folium-based geemap
 from google.oauth2 import service_account
 from datetime import date
-import json
 
-# --------------------------------------------------
-# Page config (MUST be first Streamlit command)
-# --------------------------------------------------
-st.set_page_config(layout="wide")
+# 1. Page Configuration
+st.set_page_config(layout="wide", page_title="GEE Streamlit")
 st.title("🌍 Streamlit + Google Earth Engine")
 
-# --------------------------------------------------
-# Earth Engine Initialization
-# --------------------------------------------------
+# 2. Session State Initialization
+# This prevents the map from disappearing after you click it
+if 'map_loaded' not in st.session_state:
+    st.session_state.map_loaded = False
 
+# 3. Earth Engine Initialization
 def initialize_ee():
     try:
-        # Load service account JSON from Streamlit secrets
-        service_account_info = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
-
-        # If service_account_info is an AttrDict, convert it to a standard dictionary
-        if isinstance(service_account_info, dict):
-            service_account_info = dict(service_account_info)
-       
-        # Correct Earth Engine scope
+        if "GCP_SERVICE_ACCOUNT_JSON" not in st.secrets:
+            st.error("Missing GCP_SERVICE_ACCOUNT_JSON in Streamlit secrets!")
+            return False
+            
+        service_account_info = dict(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
         SCOPES = ['https://www.googleapis.com/auth/earthengine.readonly']
-
-        # Create credentials using the service account
+        
         credentials = service_account.Credentials.from_service_account_info(
-            service_account_info,
+            service_account_info, 
             scopes=SCOPES
         )
-
-        # Initialize Earth Engine
+        
         ee.Initialize(credentials)
-
         return True
     except Exception as e:
         st.error(f"❌ Earth Engine init failed: {e}")
         return False
 
-# --------------------------------------------------
-# Call the function to initialize Earth Engine
-# --------------------------------------------------
-if initialize_ee():
-    st.success("✅ Earth Engine initialized successfully!")
-
-# --------------------------------------------------
-# Sidebar UI for setting parameters
-# --------------------------------------------------
+# 4. Sidebar UI
 with st.sidebar:
     st.header("🔍 Search Parameters")
-
     lat_ul = st.number_input("Upper-Left Latitude", value=22.5)
     lon_ul = st.number_input("Upper-Left Longitude", value=68.0)
     lat_lr = st.number_input("Lower-Right Latitude", value=21.5)
@@ -66,61 +50,52 @@ with st.sidebar:
     start_date = st.date_input("Start Date", date(2024, 1, 1))
     end_date = st.date_input("End Date", date(2024, 12, 31))
 
-    run = st.button("🚀 Search Images")
+    run_button = st.button("🚀 Search Images")
 
-# --------------------------------------------------
-# Processing and Displaying Results
-# --------------------------------------------------
-if run:
-    # Ensure coordinates are correct and ROI is created
-    roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
+# 5. Logic execution
+if initialize_ee():
+    if run_button:
+        st.session_state.map_loaded = True
 
-    collection_ids = {
-        "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
-        "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
-        "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
-        "MODIS": "MODIS/006/MOD09GA",
-    }
+    if st.session_state.map_loaded:
+        # Create ROI
+        roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
 
-    collection = (
-        ee.ImageCollection(collection_ids[satellite])
-        .filterBounds(roi)
-        .filterDate(str(start_date), str(end_date))
-    )
+        collection_ids = {
+            "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
+            "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
+            "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
+            "MODIS": "MODIS/006/MOD09GA",
+        }
 
-    count = collection.size().getInfo()
-    st.write(f"🖼️ **Images Found:** {count}")
-
-    if count == 0:
-        st.warning("No images found for the selected parameters.")
-    else:
-        image = collection.median().clip(roi)
-
-        # Create map
-        Map = geemap.Map(
-            center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2],
-            zoom=8
+        # Filter Collection
+        collection = (
+            ee.ImageCollection(collection_ids[satellite])
+            .filterBounds(roi)
+            .filterDate(str(start_date), str(end_date))
         )
 
-        # Visualization
-        if satellite == "Sentinel-2":
-            vis_params = {
-                "bands": ["B4", "B3", "B2"],
-                "min": 0,
-                "max": 3000,
-                "gamma": 1.4
-            }
-        else:
-            vis_params = {}
+        try:
+            count = collection.size().getInfo()
+            st.write(f"🖼️ **Images Found:** {count}")
 
-        Map.addLayer(image, vis_params, f"{satellite}")
-        Map.addLayer(roi, {}, "ROI")
+            if count > 0:
+                image = collection.median().clip(roi)
+                
+                # Setup Map
+                m = geemap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
+                
+                if satellite == "Sentinel-2":
+                    vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+                else:
+                    vis = {"min": 0, "max": 3000}
 
-        # Enable drawing tools
-        draw_control = Map.add_draw_control()
-
-       # Use this if you want the standard geemap/folium output
-       Map.to_streamlit(height=600) 
-       # OR use the specific geemap helper
-       geemap.st_pydeck_chart(Map) # Only if using pydeck-based maps
-
+                m.addLayer(image, vis, satellite)
+                m.addLayer(roi, {"color": "red"}, "ROI", opacity=0.5)
+                
+                # Display the map using the built-in helper
+                m.to_streamlit(height=600)
+            else:
+                st.warning("No images found for the selected range.")
+        except Exception as e:
+            st.error(f"Processing Error: {e}")
