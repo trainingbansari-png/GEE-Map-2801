@@ -87,7 +87,7 @@ if initialize_ee():
                 
                 if satellite == "Sentinel-2":
                     vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
-              else:
+        else:
         # Create a Median Composite
         image = collection.median().clip(roi)
 
