@@ -1,7 +1,7 @@
 import streamlit as st
 import ee
 # This is the lightweight version that avoids the IPython/Toolbar crash:
-from geemap import foliumap as geemap 
+import geemap
 from google.oauth2 import service_account
 from datetime import date
 
