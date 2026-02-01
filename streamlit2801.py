@@ -77,19 +77,41 @@ if initialize_ee():
             if count > 0:
                 image = collection.median().clip(roi)
                 
-                # 4. Create the Map
-                m = geemap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
-                
+               # 4. Get the Map ID and Tile URL from Earth Engine
                 if satellite == "Sentinel-2":
                     vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
                 else:
                     vis = {"min": 0, "max": 3000}
 
-                m.addLayer(image, vis, satellite)
-                m.addLayer(roi, {"color": "red"}, "ROI")
+                map_id_dict = ee.Image(image).getMapId(vis)
+                tile_url = map_id_dict['tile_fetcher'].url_format
+
+                # 5. Create a standard Folium map (Bypasses geemap's widget errors)
+                import folium
+                center_lat = (lat_ul + lat_lr) / 2
+                center_lon = (lon_ul + lon_lr) / 2
+                m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
+
+                # Add the Google Earth Engine Layer
+                folium.TileLayer(
+                    tiles=tile_url,
+                    attr='Google Earth Engine',
+                    name=satellite,
+                    overlay=True,
+                    control=True
+                ).add_to(m)
+
+                # Add the ROI rectangle for visual confirmation
+                folium.Rectangle(
+                    bounds=[[lat_lr, lon_ul], [lat_ul, lon_lr]],
+                    color="red",
+                    fill=False
+                ).add_to(m)
+
+                # 6. Render as Static HTML (This fixes the 'Invalid URL' error)
+                map_html = m._repr_html_()
+                st.components.v1.html(map_html, height=600)
                 
-                # 5. Render
-                m.to_streamlit(height=600)
             else:
                 st.warning("No images found for these coordinates/dates.")
         
