@@ -121,8 +121,8 @@ if run:
 
        import streamlit_folium as st_folium # Ensure this is installed
 
-# Use this if you want the standard geemap/folium output
-Map.to_streamlit(height=600) 
-# OR use the specific geemap helper
-geemap.st_pydeck_chart(Map) # Only if using pydeck-based maps
+       # Use this if you want the standard geemap/folium output
+       Map.to_streamlit(height=600) 
+       # OR use the specific geemap helper
+       geemap.st_pydeck_chart(Map) # Only if using pydeck-based maps
 
