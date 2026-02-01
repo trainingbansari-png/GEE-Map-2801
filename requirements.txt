@@ -1,7 +1,6 @@
 streamlit
 earthengine-api
-geemap>=0.34.0
+geemap
 streamlit-folium
-python-box>=7.0.0
-pyxyz
 google-auth
+numpy
