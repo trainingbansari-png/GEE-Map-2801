@@ -82,13 +82,18 @@ if initialize_ee():
 
         if count == 0:
             st.warning("No images found for the selected parameters.")
-        else:
+      else:
             image = collection.median().clip(roi)
 
-            # Important: Use geemap.foliumap for Streamlit compatibility
-            import geemap.foliumap as gmap
-            Map = gmap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
+            # Create the map using the folium backend explicitly
+            # This avoids the "box.py" error
+            Map = geemap.Map(
+                center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], 
+                zoom=8,
+                basemap="HYBRID" # Specify a basemap directly
+            )
 
+            # Define Visualization
             if satellite == "Sentinel-2":
                 vis_params = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
             else:
@@ -99,6 +104,3 @@ if initialize_ee():
 
             # Final Render
             Map.to_streamlit(height=600)
-
-    except Exception as e:
-        st.error(f"❌ Error during processing: {e}")
