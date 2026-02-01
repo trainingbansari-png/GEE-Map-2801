@@ -75,37 +75,30 @@ if initialize_ee():
             .filterDate(str(start_date), str(end_date))
         )
 
-        try:
-            count = collection.size().getInfo()
-            st.write(f"🖼️ **Images Found:** {count}")
+      # ... inside the 'if run:' or session state block ...
+    try:
+        count = collection.size().getInfo()
+        st.write(f"🖼️ **Images Found:** {count}")
 
-            if count > 0:
-                image = collection.median().clip(roi)
-                
-                # Setup Map
-                m = geemap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
-                
-                if satellite == "Sentinel-2":
-                    vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+        if count == 0:
+            st.warning("No images found for the selected parameters.")
         else:
-        # Create a Median Composite
-        image = collection.median().clip(roi)
+            image = collection.median().clip(roi)
 
-        # 1. Force the use of the Folium backend for Streamlit
-        import geemap.foliumap as gmap 
-        
-        # 2. Initialize the map
-        Map = gmap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
+            # Important: Use geemap.foliumap for Streamlit compatibility
+            import geemap.foliumap as gmap
+            Map = gmap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
 
-        # 3. Add Layers
-        if satellite == "Sentinel-2":
-            vis_params = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
-        else:
-            vis_params = {"min": 0, "max": 3000}
+            if satellite == "Sentinel-2":
+                vis_params = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+            else:
+                vis_params = {"min": 0, "max": 3000}
 
-        Map.addLayer(image, vis_params, f"{satellite}")
-        Map.addLayer(roi, {"color": "red"}, "ROI")
+            Map.addLayer(image, vis_params, f"{satellite}")
+            Map.addLayer(roi, {"color": "red"}, "ROI")
 
-        # 4. Final Render
-        st.write("### 🗺️ Interactive Map")
-        Map.to_streamlit(height=600)
+            # Final Render
+            Map.to_streamlit(height=600)
+
+    except Exception as e:
+        st.error(f"❌ Error during processing: {e}")
