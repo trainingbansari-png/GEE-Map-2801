@@ -1,6 +1,6 @@
 import streamlit as st
 import ee
-import geemap
+import geemap.foliumap as geemap
 from google.oauth2 import service_account
 from datetime import date
 
@@ -87,15 +87,25 @@ if initialize_ee():
                 
                 if satellite == "Sentinel-2":
                     vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
-                else:
-                    vis = {"min": 0, "max": 3000}
+              else:
+        # Create a Median Composite
+        image = collection.median().clip(roi)
 
-                m.addLayer(image, vis, satellite)
-                m.addLayer(roi, {"color": "red"}, "ROI", opacity=0.5)
-                
-                # Display the map using the built-in helper
-                m.to_streamlit(height=600)
-            else:
-                st.warning("No images found for the selected range.")
-        except Exception as e:
-            st.error(f"Processing Error: {e}")
+        # 1. Force the use of the Folium backend for Streamlit
+        import geemap.foliumap as gmap 
+        
+        # 2. Initialize the map
+        Map = gmap.Map(center=[(lat_ul + lat_lr) / 2, (lon_ul + lon_lr) / 2], zoom=8)
+
+        # 3. Add Layers
+        if satellite == "Sentinel-2":
+            vis_params = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+        else:
+            vis_params = {"min": 0, "max": 3000}
+
+        Map.addLayer(image, vis_params, f"{satellite}")
+        Map.addLayer(roi, {"color": "red"}, "ROI")
+
+        # 4. Final Render
+        st.write("### 🗺️ Interactive Map")
+        Map.to_streamlit(height=600)
