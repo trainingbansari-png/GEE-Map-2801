@@ -3,4 +3,4 @@ earthengine-api
 geemap
 streamlit-folium
 google-auth
-io.StringIO
+
