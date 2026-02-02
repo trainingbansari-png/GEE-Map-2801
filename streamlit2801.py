@@ -1,9 +1,10 @@
 import streamlit as st
 import ee
-# This is the lightweight version that avoids the IPython/Toolbar crash:
 import geemap
 from google.oauth2 import service_account
 from datetime import date
+import folium
+from folium.plugins import Draw
 
 # --- Page Config ---
 st.set_page_config(layout="wide")
@@ -13,7 +14,7 @@ st.title("🌍 Streamlit + Google Earth Engine")
 if "map_ready" not in st.session_state:
     st.session_state.map_ready = False
 
-# --- Initialization Function ---
+# --- Initialize Earth Engine ---
 def initialize_ee():
     try:
         if "GCP_SERVICE_ACCOUNT_JSON" not in st.secrets:
@@ -53,67 +54,81 @@ with st.sidebar:
 if initialize_ee():
     if st.session_state.map_ready:
         try:
-            # 1. Create ROI
-            roi = ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul])
+            # Create map and draw rectangle
+            center_lat = (lat_ul + lat_lr) / 2
+            center_lon = (lon_ul + lon_lr) / 2
+            m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
 
-            # 2. Map Collection IDs
-            collection_ids = {
-                "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
-                "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
-                "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
-                "MODIS": "MODIS/006/MOD09GA",
-            }
+            # Add drawing tools (for rectangle)
+            draw = Draw(export=True)
+            draw.add_to(m)
 
-            # 3. Filter and Process
-            collection = (
-                ee.ImageCollection(collection_ids[satellite])
-                .filterBounds(roi)
-                .filterDate(str(start_date), str(end_date))
-            )
+            # --- Display the map in Streamlit ---
+            map_html = m._repr_html_()
+            st.components.v1.html(map_html, height=600)
 
-            count = collection.size().getInfo()
-            st.info(f"🖼️ Images Found: {count}")
+            # Get coordinates from the drawn shape
+            if "drawn_coordinates" in st.session_state:
+                drawn_coords = st.session_state.drawn_coordinates
+                st.write(f"Drawn Rectangle Coordinates: {drawn_coords}")
 
-            if count > 0:
-                image = collection.median().clip(roi)
-                
-               # 4. Get the Map ID and Tile URL from Earth Engine
-                if satellite == "Sentinel-2":
-                    vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
-                else:
-                    vis = {"min": 0, "max": 3000}
+                # --- Create ROI from drawn rectangle ---
+                if drawn_coords:
+                    lat_ul, lon_ul = drawn_coords[1]
+                    lat_lr, lon_lr = drawn_coords[0]
 
-                map_id_dict = ee.Image(image).getMapId(vis)
-                tile_url = map_id_dict['tile_fetcher'].url_format
+                    # Map Collection IDs
+                    collection_ids = {
+                        "Sentinel-2": "COPERNICUS/S2_SR_HARMONIZED",
+                        "Landsat-8": "LANDSAT/LC08/C02/T1_L2",
+                        "Landsat-9": "LANDSAT/LC09/C02/T1_L2",
+                        "MODIS": "MODIS/006/MOD09GA",
+                    }
 
-                # 5. Create a standard Folium map (Bypasses geemap's widget errors)
-                import folium
-                center_lat = (lat_ul + lat_lr) / 2
-                center_lon = (lon_ul + lon_lr) / 2
-                m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
+                    # Filter and process image collection
+                    collection = (
+                        ee.ImageCollection(collection_ids[satellite])
+                        .filterBounds(ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul]))
+                        .filterDate(str(start_date), str(end_date))
+                    )
 
-                # Add the Google Earth Engine Layer
-                folium.TileLayer(
-                    tiles=tile_url,
-                    attr='Google Earth Engine',
-                    name=satellite,
-                    overlay=True,
-                    control=True
-                ).add_to(m)
+                    count = collection.size().getInfo()
+                    st.info(f"🖼️ Images Found: {count}")
 
-                # Add the ROI rectangle for visual confirmation
-                folium.Rectangle(
-                    bounds=[[lat_lr, lon_ul], [lat_ul, lon_lr]],
-                    color="red",
-                    fill=False
-                ).add_to(m)
+                    if count > 0:
+                        image = collection.median().clip(ee.Geometry.Rectangle([lon_ul, lat_lr, lon_lr, lat_ul]))
 
-                # 6. Render as Static HTML (This fixes the 'Invalid URL' error)
-                map_html = m._repr_html_()
-                st.components.v1.html(map_html, height=600)
-                
-            else:
-                st.warning("No images found for these coordinates/dates.")
-        
+                        # Get map ID and tile URL
+                        if satellite == "Sentinel-2":
+                            vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+                        else:
+                            vis = {"min": 0, "max": 3000}
+
+                        map_id_dict = ee.Image(image).getMapId(vis)
+                        tile_url = map_id_dict['tile_fetcher'].url_format
+
+                        # Add the Earth Engine layer to the map
+                        folium.TileLayer(
+                            tiles=tile_url,
+                            attr='Google Earth Engine',
+                            name=satellite,
+                            overlay=True,
+                            control=True
+                        ).add_to(m)
+
+                        # Add drawn rectangle to the map
+                        folium.Rectangle(
+                            bounds=[[lat_lr, lon_ul], [lat_ul, lon_lr]],
+                            color="red",
+                            fill=False
+                        ).add_to(m)
+
+                        # Render the map as static HTML
+                        map_html = m._repr_html_()
+                        st.components.v1.html(map_html, height=600)
+                    
+                    else:
+                        st.warning("No images found for these coordinates/dates.")
+
         except Exception as e:
             st.error(f"Processing Error: {e}")
