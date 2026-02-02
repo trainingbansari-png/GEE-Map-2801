@@ -117,4 +117,3 @@ if initialize_ee():
         
         except Exception as e:
             st.error(f"Processing Error: {e}")
-i want to update this code with i can drag courser and draw a rectangle result give their coordinates latitude and longitude\
