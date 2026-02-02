@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 from datetime import date
 import folium
 from folium.plugins import Draw
+import pandas as pd
 
 # --- Page Config ---
 st.set_page_config(layout="wide")
@@ -126,7 +127,21 @@ if initialize_ee():
                         # Render the map as static HTML
                         map_html = m._repr_html_()
                         st.components.v1.html(map_html, height=600)
-                    
+
+                        # Show table with image metadata
+                        image_data = {
+                            "Satellite": [satellite],
+                            "Image Count": [count],
+                            "Upper-Left Coordinates": [(lat_ul, lon_ul)],
+                            "Lower-Right Coordinates": [(lat_lr, lon_lr)],
+                            "Start Date": [start_date],
+                            "End Date": [end_date]
+                        }
+
+                        df = pd.DataFrame(image_data)
+                        st.write("### Image Search Results:")
+                        st.table(df)
+
                     else:
                         st.warning("No images found for these coordinates/dates.")
 
